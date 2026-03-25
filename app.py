@@ -9,7 +9,7 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# --- 설정값 (A5 사이즈: A4의 절반) ---
+# --- 설정값 (A5 사이즈: 약 148mm x 210mm) ---
 A5_WIDTH_MM = 148
 A5_HEIGHT_MM = 210
 
@@ -30,25 +30,54 @@ def get_high_res_cover(book_title):
         return None
 
 def create_pdf(img_bytes, title):
-    # A5 사이즈 PDF 생성
     pdf = FPDF('P', 'mm', 'A5')
     pdf.add_page()
     
-    # 이미지 임시 저장
     img = Image.open(BytesIO(img_bytes))
     img_path = "temp_cover.png"
     img.save(img_path)
     
-    # 이미지를 A5 꽉 차게 배치 (여백 10mm 제외)
     margin = 10
     draw_width = A5_WIDTH_MM - (margin * 2)
-    # 이미지 비율 유지하며 높이 계산
     img_ratio = img.height / img.width
     draw_height = draw_width * img_ratio
     
-    # 만약 높이가 A5를 넘어가면 높이 기준으로 재계산
     if draw_height > (A5_HEIGHT_MM - margin * 2):
         draw_height = A5_HEIGHT_MM - margin * 2
         draw_width = draw_height / img_ratio
 
-    pdf.image(img_path, x=margin, y=margin, w=draw_width
+    # 괄호와 콤마를 정확히 닫았습니다.
+    pdf.image(img_path, x=margin, y=margin, w=draw_width)
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- UI ---
+st.set_page_config(page_title="알라딘 A5 표지 추출기", page_icon="📖")
+st.title("📖 표지 추출기 (A4 절반 사이즈)")
+st.write("A4 용지의 절반인 **A5 크기**로 인쇄 가능한 PDF를 만듭니다.")
+
+title_input = st.text_input("책 제목을 정확히 입력하세요:", "")
+
+if st.button("표지 생성 및 PDF 만들기"):
+    if title_input:
+        with st.spinner('표지를 찾아서 PDF로 변환 중...'):
+            img_url = get_high_res_cover(title_input)
+            if img_url:
+                resp = requests.get(img_url)
+                st.image(resp.content, caption="찾은 이미지 (미리보기)", width=300)
+                
+                # PDF 생성
+                try:
+                    pdf_data = create_pdf(resp.content, title_input)
+                    st.download_button(
+                        label="🖨️ A5 사이즈 PDF 다운로드",
+                        data=pdf_data,
+                        file_name=f"{title_input}_A5.pdf",
+                        mime="application/pdf"
+                    )
+                    st.success("PDF 생성이 완료되었습니다!")
+                except Exception as e:
+                    st.error(f"PDF 생성 중 오류가 발생했습니다: {e}")
+            else:
+                st.error("책을 찾을 수 없습니다. 제목을 확인해 주세요.")
+    else:
+        st.warning("책 제목을 입력해 주세요.")
