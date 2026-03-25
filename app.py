@@ -9,7 +9,7 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# --- 설정값 (A5 사이즈: 약 148mm x 210mm) ---
+# --- 설정값 (A5 사이즈) ---
 A5_WIDTH_MM = 148
 A5_HEIGHT_MM = 210
 
@@ -46,9 +46,10 @@ def create_pdf(img_bytes, title):
         draw_height = A5_HEIGHT_MM - margin * 2
         draw_width = draw_height / img_ratio
 
-    # 괄호와 콤마를 정확히 닫았습니다.
     pdf.image(img_path, x=margin, y=margin, w=draw_width)
-    return pdf.output(dest='S').encode('latin-1')
+    
+    # .encode('latin-1')를 삭제하여 오류를 해결했습니다.
+    return pdf.output()
 
 # --- UI ---
 st.set_page_config(page_title="알라딘 A5 표지 추출기", page_icon="📖")
@@ -65,18 +66,17 @@ if st.button("표지 생성 및 PDF 만들기"):
                 resp = requests.get(img_url)
                 st.image(resp.content, caption="찾은 이미지 (미리보기)", width=300)
                 
-                # PDF 생성
                 try:
                     pdf_data = create_pdf(resp.content, title_input)
                     st.download_button(
                         label="🖨️ A5 사이즈 PDF 다운로드",
-                        data=pdf_data,
+                        data=bytes(pdf_data), # bytes 타입으로 명시적 변환
                         file_name=f"{title_input}_A5.pdf",
                         mime="application/pdf"
                     )
                     st.success("PDF 생성이 완료되었습니다!")
                 except Exception as e:
-                    st.error(f"PDF 생성 중 오류가 발생했습니다: {e}")
+                    st.error(f"PDF 생성 중 오류가 발생했습니다: {str(e)}")
             else:
                 st.error("책을 찾을 수 없습니다. 제목을 확인해 주세요.")
     else:
